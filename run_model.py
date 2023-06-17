@@ -42,10 +42,59 @@ def compile_model(model,inputs,targets, lr_list, splits = 8, best_lr = None):
     results = []
     for lr in lr_list:
         if best_lr is not None:
-            results.append(build_and_compile_model(best_lr, model, inputs, targets))
+            results.append(build_and_compile_model(best_lr, model, inputs, targets, splits))
             print(model.summary())
-            scores_per_fold(results)
+            scores_per_fold(results, lr)
             break
         print(f"Current lr: {round(lr,10)}")
         results.append(build_and_compile_model(round(lr,10), model, inputs, targets, splits))
     return results
+
+def scores_per_fold(results, _best_lr = None):
+    if _best_lr is not None:
+        print('------------------------------------------------------------------------')
+        print('Score per fold')
+        for i in range(len(results[0][2])):
+            print('------------------------------------------------------------------------')
+            print(f'> Fold {i+1} - Loss: {results[0][1][i]} - Accuracy: {results[0][2][i]}%')
+        print('------------------------------------------------------------------------')
+        print('Average scores for all folds:')
+        print(f'> Accuracy: {np.mean(results[0][2])} (+- {np.std(results[0][2])})')
+        print(f'> Loss: {np.mean(results[0][1])}')
+        print('------------------------------------------------------------------------')
+        
+
+def show_nine_losses(results, lr_list, title=""):
+    fig, axs = plt.subplots(3,3, figsize=(10, 6))
+    plt.tight_layout()
+    fig.subplots_adjust(hspace=0.5)
+    fig.suptitle(title, fontsize=16, y=1.05)
+    axs = np.ravel(axs)
+    for i,lr in enumerate(lr_list):
+        avg_loss_per_epoch = [0 for i in range(len(results[0][0][0].history['loss']))] #epochs
+        for hist in results[i][0]:
+            avg_loss_per_epoch= [x + y for x, y in zip(avg_loss_per_epoch, hist.history['loss'])]
+        avg_loss_per_epoch = [x/len(results[0][0]) for x in avg_loss_per_epoch]
+        axs[i].plot(avg_loss_per_epoch, label='loss')
+        axs[i].set_title(f'lr={round(lr,8)}')
+        axs[i].set_xlabel('Epoch')
+        axs[i].set_ylabel('Loss')
+        axs[i].legend()
+        axs[i].grid(True)
+    plt.show()
+
+def show_single_loss(results, lr, title="", legend='loss'):
+    fig, ax = plt.subplots(figsize=(10, 6))
+    avg_loss_per_epoch = [0 for i in range(len(results[0][0][0].history['loss']))]
+    for hist in results[0][0]:
+        avg_loss_per_epoch= [x + y for x, y in zip(avg_loss_per_epoch, hist.history['loss'])]
+    avg_loss_per_epoch = [x/len(results[0][0]) for x in avg_loss_per_epoch]
+    plt.tight_layout()
+    fig.suptitle(title, fontsize=16, y=1.05)
+    ax.plot(avg_loss_per_epoch, label='loss')
+    ax.set_title(f'lr={lr}')
+    ax.set_xlabel('Epoch')
+    ax.set_ylabel('Loss')
+    ax.legend(title=legend)
+    ax.grid(True)
+    plt.show()
